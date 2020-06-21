@@ -57,6 +57,9 @@ void getData(Arguments *in, Reply *out);
 RPCFunction rpcAcc(&getData, "getData");
 char buf[256], outbuf[256];
 int query_count=0;
+Thread t_uart;
+
+float ping_distance[3] = {0};
 
 void pid_init(){
 
@@ -73,7 +76,6 @@ void pid_init(){
     a2 = Kd;
 
 }
-
 float pid_process(float in){
 
     int out = in*a0 + a1*state[0] + a2*state[1] + state[2];
@@ -180,19 +182,30 @@ void pid_control(char rotation, float turn){
 }
 void recieve_thread(){
 
-   while(1) {
+  char recv;
+  xbee.printf("Mission 1: detect id img=");
+  while(1){
+    if(uart.readable()){
+    //if(uart.getc()!='\n'){
+      xbee.printf("read from openmv\r\n");
+      recv = uart.getc();
+      xbee.putc(recv);
+    //}
+    }
+  }
+  //  while(1) {
 
-      if(uart.readable()){
+  //     if(uart.readable()){
 
-            char recv = uart.getc();
+  //           char recv = uart.getc();
 
-            pc.putc(recv);
+  //           pc.putc(recv);
 
-            pc.printf("\r\n");
+  //           pc.printf("\r\n");
 
-      }
+  //     }
 
-   }
+  //  }
 
 }
 void getData(Arguments *in, Reply *out){
@@ -342,85 +355,164 @@ void check_addr(char *xbee_reply, char *messenger){
 
 }
 int main(){
-  while(switch_start==1){}
 
-  uart.baud(9600);
+  while(switch_start==1){
+    car.stop();
+    wait(0.5);
+  } //wait for switch to turn on and start
 
+  led_turn=0;
+  led_pic=0;
+  led_run=0;
   parallax_encoder encoder0(pin3, encoder_ticker);
   parallax_ping ping1(pin10);
   encoder0.reset();
+  uart.baud(9600);
+  xbee.printf("start!");
+  t_uart.start(recieve_thread);
 
-  // //take pic with openmv & classify
-  // int i=0;
-  // //while(i<5){     //take 5 pictures
-  //     char s[21];
-  //     sprintf(s,"image_classification");
-  //     uart.puts(s);
-  //     pc.printf("send\r\n");
-  //     wait(1);
-  // //    i++;
-  // //}
 
-  // //upload img label to mqtt server
-  // char recv;
-  // xbee.printf("Mission 1: detect id img=");
-  // while(uart.readable() && uart.getc()!='\n'){
-  //   pc.printf("read from openmv\r\n");
-  //   recv = uart.getc();
-  //   pc.putc(recv);
-  //   xbee.putc(recv);
+  /* Use ping to detect objects*/
+  // Collect three distance data
+  //pid_control('r',10);
+  // xbee.printf("left\r\n");
+  // car.turn(3,-0.1);
+  // while(encoder0.get_cm()<2){}
+  // encoder0.reset();
+  // car.stop();
+  // ping_distance[0]=(float)ping1;
+
+  // xbee.printf("middle\r\n");
+  // car.turn(3,-0.1);
+  // while(encoder0.get_cm()<2){}
+  // encoder0.reset();
+  // car.stop();
+  // ping_distance[1]=(float)ping1;
+
+  // xbee.printf("right\r\n");
+  // car.turn(3,-0.1);
+  // while(encoder0.get_cm()<2){}
+  // encoder0.reset();
+  // car.stop();
+  // ping_distance[2]=(float)ping1;
+  
+
+  // for(int i =0; i<3; i++){
+  //   xbee.printf("ping_distance[%d]=%f\r\n", i, ping_distance[i]);
+  // }
+  // // Classify objects: 
+  // if(ping_distance[0]<ping_distance[1] && ping_distance[1]<ping_distance[2]){
+  //   xbee.printf("right triangle\r\n");
+  // }else if(ping_distance[0]<ping_distance[1] && ping_distance[1]>ping_distance[2]){
+  //   xbee.printf("double mountain\r\n");
+  // }else if(ping_distance[0]>ping_distance[1] && ping_distance[1]<ping_distance[2]){
+  //   xbee.printf("normal triangle\r\n");
+  // }else{
+  //   xbee.printf("square\r\n");
   // }
   
 
-  // go straightforward 120 cm
-  car.goStraight(100);
-  while(encoder0.get_cm()<120) {
-      //pid control keep straight
-      xbee.printf("keep going!\r\n");
-  };
-  encoder0.reset();
-  xbee.printf("finish!");
-  led_run=0;
-  car.stop();
-  wait(0.5);
+  // //Go straightforward 120 cm
+  // //car.goStraight(100);
+  // car.servo0.set_speed(110);
+  // car.servo1.set_speed(-100);
+  // xbee.printf("keep going!\r\n");
+  // while(encoder0.get_cm()<110 ) {
+  //   // if((float)ping1<10){
+  //   //   xbee.printf("ping1<25");
+  //   //   break;
+  //   // }
+  // };
+  // encoder0.reset();
+  // xbee.printf("finish!");
+  // led_run=0;
+  // car.stop();
+  // wait(0.5);
 
-  //scan qrcode for calibration
+  // // //scan qrcode for calibration
 
-  //turn left 90 degree to enter mission 1
-  //pid_control('l',55);
-  car.turn(55,-0.5);
-  //car.goStraight(100);
-  xbee.printf("turn to mission1");
-  while(encoder0.get_cm()<27) {
-      //pid control keep straight
-      pc.printf("turn left!\r\n");
-  };
-  encoder0.reset();
-  car.stop();
-  wait(1);
-  car.goStraight(100);
-  while(encoder0.get_cm()<90) {
-      //pid control keep straight
-      pc.printf("enter mission1!\r\n");
-  };
-  encoder0.reset();
+  // // //turn left 90 degree to enter mission 1
+  // car.turn(55,-0.5);
+  // xbee.printf("turn to mission1");
+  // xbee.printf("turn left!\r\n");
+  // while(encoder0.get_cm()<32) {};
+  // encoder0.reset();
+  // car.stop();
+  // wait(1);
+  // car.goStraight(100);
+  // xbee.printf("enter mission1!\r\n");
+  // while(encoder0.get_cm()<68) {
+  //   // if((float)ping1<10) {
+  //   //   xbee.printf("ping<10\r\n");
+  //   //   break;
+  //   // }
+  // };
+  // encoder0.reset();
 
-  //reverse parking
-  car.turn(-55,-0.5);
-  while(encoder0.get_cm()<40) {
-      xbee.printf("turn to park!\r\n");
-  };
-  encoder0.reset();
-  car.stop();
+  // //reverse parking
+  // car.turn(-60,-0.3);
+  // xbee.printf("turn to park!\r\n");
+  // while(encoder0.get_cm()<25) {};
+  // encoder0.reset();
+  // car.stop();
 
-  car.goStraight(-55);
-  while(encoder0.get_cm()<30) {
-      xbee.printf("parking!\r\n");
-  };
-  encoder0.reset();
-  car.stop();
+  // car.goStraight(-55);
+  // xbee.printf("parking!\r\n");
+  // while(encoder0.get_cm()<15) {};
+  // encoder0.reset();
+
+  // //leave the park
+  // car.goStraight(55);
+  // xbee.printf("leaving the park!\r\n");
+  // while(encoder0.get_cm()<15) {};
+  // encoder0.reset();
+  // car.stop();
+
+  // //turn right to leave mission 1
+  // car.turn(60, 0.3);
+  // xbee.printf("turn right!\r\n");
+  // while(encoder0.get_cm()<10) {};
+  // encoder0.reset();
+  // car.stop();
+
+  // car.goStraight(55);
+  // xbee.printf("leaving mission 1!\r\n");
+  // while(encoder0.get_cm()<50) {};
+  // encoder0.reset();
+  // car.stop();
+
+  // car.turn(55, 0.5);
+  // xbee.printf("turn right!\r\n");
+  // while(encoder0.get_cm()<20) {}; 
+  // encoder0.reset();
+  // car.stop();
+
+  // //Go straightforward 120 cm
+  // car.goStraight(100);
+  // xbee.printf("keep going!\r\n");
+  // while(encoder0.get_cm()<110) {};
+  // encoder0.reset();
+  // xbee.printf("finish!");
+  // led_run=0;
+  // car.stop();
+  // wait(0.5);
 
   //send classify_img rpc to openmv cam
+  //pid_control('r', 30);
+  //take pic with openmv & classify
+  int i=0;
+  while(i<5){     //take 5 pictures
+    char s[21];
+    sprintf(s,"image_classification");
+    uart.puts(s);
+    xbee.printf("send img\r\n");
+    i++;
+    wait(1);
+  }
+  xbee.printf("end sending img signal\r\n");
+
+  //upload img label to mqtt server
+
 
 
 
